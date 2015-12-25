@@ -4,9 +4,13 @@ package com.example.android.sunshine.app;
  * Created by Tom on 2015/12/24.
  */
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.Preference;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -15,9 +19,11 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.text.format.Time;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,10 +66,24 @@ public class ForecastFragment extends Fragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
         if(itemId == R.id.action_refresh){
-            new FetchWeatherTask().execute("china:130000");
+            //获取到用户设置的地址
+            updateWeather();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    //更新天气方法，当fragment重建时调用此方法使用AsyncTask执行网络请求
+    public void updateWeather(){
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        String location = preferences.getString(getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+        new FetchWeatherTask().execute(location);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
     }
 
     @Override
@@ -71,27 +91,26 @@ public class ForecastFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
-        String[] forecastArray = {
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22",
-                "Today - sunny - 33/22"
-        };
-
-        List<String> weekForecast = new ArrayList<>(Arrays.asList(forecastArray));
-
         forecastAdapter = new ArrayAdapter<String>(
                 getActivity(),
                 R.layout.list_item_forecast,
                 R.id.list_item_forecast_textview,
-                weekForecast);
+                new ArrayList<String>());
 
         ListView forecastList = (ListView) rootView.findViewById(R.id.listview_forecast);
 
         forecastList.setAdapter(forecastAdapter);
+
+        forecastList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                //Toast.makeText(getActivity(), "This is a Toast", Toast.LENGTH_SHORT).show();
+                String forecast = forecastAdapter.getItem(i);
+                Intent intent = new Intent(getActivity(),DetailActivity.class);
+                intent.putExtra(Intent.EXTRA_TEXT,forecast);
+                startActivity(intent);
+            }
+        });
 
         return rootView;
     }
@@ -296,7 +315,6 @@ public class ForecastFragment extends Fragment {
         protected void onPostExecute(String[] strings) {
             super.onPostExecute(strings);
             List<String> weekForecast = new ArrayList<>(Arrays.asList(strings));
-            forecastAdapter.clear();
             forecastAdapter.addAll(weekForecast);
         }
     }
